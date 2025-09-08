@@ -424,7 +424,7 @@ export default function Home() {
 
       {/* Goal */}
       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ fontSize: 13, opacity: 0.85 }}>Today's Goal</div>
+        <div style={{ fontSize: 13, opacity: 0.85 }}>{"Today's Goal"}</div>
         <input
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
@@ -443,7 +443,7 @@ export default function Home() {
       {/* Durations */}
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>Focus (minutes)</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Focus (minutes)"}</div>
           <input
             type="number"
             min={1}
@@ -467,7 +467,7 @@ export default function Home() {
           />
         </div>
         <div style={{ width: 120 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>Break (minutes)</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Break (minutes)"}</div>
           <input
             type="number"
             min={1}
@@ -495,7 +495,7 @@ export default function Home() {
       {/* Sessions */}
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>Session</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Session"}</div>
           <input
             type="number"
             min={1}
@@ -514,7 +514,7 @@ export default function Home() {
           />
         </div>
         <div style={{ width: 140 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>Total Sessions</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Total Sessions"}</div>
           <input
             type="number"
             min={1}
@@ -582,7 +582,7 @@ export default function Home() {
     </div>
 
     <div className="panel slide-up" style={{ padding: 14 }}>
-      <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>Preview Controls</div>
+      <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>{"Preview Controls"}</div>
       <div style={{ display: "flex", gap: 8 }}>
         <button
           onClick={() => {
