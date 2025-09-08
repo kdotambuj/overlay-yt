@@ -116,20 +116,6 @@ export default function Home() {
     // fast-forward to 0 then auto-switch logic will run via useEffect
     setRemainingSec(0);
   };
-  const toggleMode = () => {
-    setIsFocus((f) => {
-      const newMode = !f;
-      if (newMode) {
-        initialRef.current = focusMinutes * 60;
-        setRemainingSec(focusMinutes * 60);
-      } else {
-        initialRef.current = breakMinutes * 60;
-        setRemainingSec(breakMinutes * 60);
-      }
-      setIsRunning(false);
-      return newMode;
-    });
-  };
 
   // Keyboard: space to start/pause, r to reset, s to skip
   useEffect(() => {
@@ -374,8 +360,8 @@ export default function Home() {
               Reminder
             </div>
             <div style={{ fontSize: 12, opacity: 0.9, lineHeight: "1.4" }}>
-              💬 Chat will be read every break.
-              Stay focused — small consistent steps win.
+              {"💬 Chat will be read every break."}
+              {"Stay focused — small consistent steps win."}
             </div>
           </div>
         </div>
@@ -397,7 +383,7 @@ export default function Home() {
         }}
       >
         <div style={{ fontSize: 14 }}>
-          Placement Prep 2026 — Study With Me
+          {"Placement Prep 2026 — Study With Me"}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <div
