@@ -1,636 +1,268 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
+"use client"
+import { useEffect, useState } from "react"
+import { Play, Pause, RotateCcw, SkipForward, Clock, Coffee, Brain, Volume2, MessageCircle } from "lucide-react"
 
-/**
- * Overlay + Control Panel (1280x720 left overlay)
- * - Transparent background suitable for OBS Browser Source
- * - Aesthetic styling + animations
- * - Full timer controls (start/pause/reset/skip/auto-switch)
- * - Editable goal, session, break/focus durations
- *
- * OBS usage:
- * - Add Browser Source, point to this page.
- * - Set width=1280 height=720 and check "Allow Transparency" (or similar) in OBS.
- * - Crop the OBS capture to the left portion (1280x720) if capturing the whole window.
- */
-
-/* --- Utility functions --- */
-const pad = (n: number) => String(n).padStart(2, "0");
-const minutesAndSeconds = (s: number) =>
-  `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+type TimerMode = "focus" | "break"
+type TimerState = "idle" | "running" | "paused"
 
 export default function Home() {
-  // Overlay content state
-  const [goal, setGoal] = useState("DSA — Graphs & Trees");
-  const [totalSessions, setTotalSessions] = useState<number>(8);
+  const [topic, setTopic] = useState<string>("Live DSA & Study with me")
+  const [focusTime, setFocusTime] = useState<number>(50 * 60) // in seconds
+  const [breakTime, setBreakTime] = useState<number>(10 * 60) // in seconds
+  const [timerState, setTimerState] = useState<TimerState>("idle")
+  const [secondsLeft, setSecondsLeft] = useState<number>(focusTime)
+  const [mode, setMode] = useState<TimerMode>("focus")
 
-  // Timer config (in minutes)
-  const [focusMinutes, setFocusMinutes] = useState<number>(50);
-  const [breakMinutes, setBreakMinutes] = useState<number>(10);
+  // Format seconds as MM:SS
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0")
+    const s = (seconds % 60).toString().padStart(2, "0")
+    return `${m}:${s}`
+  }
 
-  // Timer runtime state (seconds)
-  const [remainingSec, setRemainingSec] = useState<number>(focusMinutes * 60);
-  const [isFocus, setIsFocus] = useState<boolean>(true);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
+  // Calculate progress percentage for circular timer
+  const getProgress = () => {
+    const totalTime = mode === "focus" ? focusTime : breakTime
+    return ((totalTime - secondsLeft) / totalTime) * 100
+  }
 
-  // Session tracking
-  const [session, setSession] = useState<number>(1);
-
-  // Animation & progress helpers
-  const initialRef = useRef<number>(focusMinutes * 60);
+  // Timer effect
   useEffect(() => {
-    // whenever durations change, update initialRef but don't force if running
-    if (isFocus) {
-      initialRef.current = focusMinutes * 60;
-      if (!isRunning) setRemainingSec(focusMinutes * 60);
-    } else {
-      initialRef.current = breakMinutes * 60;
-      if (!isRunning) setRemainingSec(breakMinutes * 60);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusMinutes, breakMinutes]);
+    if (timerState !== "running") return
 
-  // Timer tick
-  useEffect(() => {
-    if (!isRunning) return;
-    const id = setInterval(() => {
-      setRemainingSec((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isRunning]);
-
-  // Auto-switch when remaining reaches zero
-  useEffect(() => {
-    if (remainingSec > 0) return;
-    // Switch mode
-    if (isFocus) {
-      // just ended focus -> go to break
-      setIsFocus(false);
-      initialRef.current = breakMinutes * 60;
-      setRemainingSec(breakMinutes * 60);
-      setIsRunning(false); // pause at break start — you can change to auto-start if desired
-    } else {
-      // just ended break -> next focus
-      setIsFocus(true);
-      setSession((s) => Math.min(s + 1, totalSessions));
-      initialRef.current = focusMinutes * 60;
-      setRemainingSec(focusMinutes * 60);
-      setIsRunning(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSec]);
-
-  // Compute next break time (for display) — approximate based on now + remainingSec when in focus
-  const nextBreakDisplay = React.useMemo(() => {
-    if (!isFocus) {
-      // currently in break — show when break ends
-      const t = new Date(Date.now() + remainingSec * 1000);
-      return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } else {
-      const t = new Date(Date.now() + remainingSec * 1000);
-      return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    }
-  }, [isFocus, remainingSec]);
-
-  // Progress for circular ring (0-1)
-  const progress = 1 - remainingSec / Math.max(1, initialRef.current);
-  const radius = 90;
-  const stroke = 10;
-  const normalizedRadius = radius - stroke * 0.5;
-  const circumference = 2 * Math.PI * normalizedRadius;
-  const strokeDashoffset = circumference - progress * circumference;
-
-  // Controls
-  const startPause = () => setIsRunning((r) => !r);
-  const resetTimer = () => {
-    setIsRunning(false);
-    if (isFocus) {
-      initialRef.current = focusMinutes * 60;
-      setRemainingSec(focusMinutes * 60);
-    } else {
-      initialRef.current = breakMinutes * 60;
-      setRemainingSec(breakMinutes * 60);
-    }
-  };
-  const skip = () => {
-    // fast-forward to 0 then auto-switch logic will run via useEffect
-    setRemainingSec(0);
-  };
-
-  // Keyboard: space to start/pause, r to reset, s to skip
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        startPause();
-      } else if (e.key.toLowerCase() === "r") {
-        resetTimer();
-      } else if (e.key.toLowerCase() === "s") {
-        skip();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFocus, remainingSec, isRunning]);
-
-  // Styles inline (to keep page self-contained) — tailwind-like classes assumed available,
-  // but we include minimal style tags for essential aesthetics and animations.
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "transparent", // ensure transparency
-        color: "white",
-        fontFamily:
-          'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial',
-        display: "flex",
-        gap: 24,
-        padding: 24,
-        boxSizing: "border-box",
-      }}
-    >
-      <style>{`
-        /* Basic reset for the overlay area */
-        .panel { background: rgba(0,0,0,0.35); backdrop-filter: blur(6px); border-radius: 14px; border: 1px solid rgba(255,255,255,0.06); }
-        .glass { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); }
-        .glow { box-shadow: 0 8px 30px rgba(70,120,255,0.08); }
-        .btn { cursor: pointer; padding: 8px 14px; border-radius: 10px; border: none; font-weight: 600; }
-        .btn-primary { background: linear-gradient(90deg,#5b8cff,#3b6bff); color: white; }
-        .btn-ghost { background: rgba(255,255,255,0.03); color: #e6eefc; border: 1px solid rgba(255,255,255,0.04); }
-        .pulse { animation: pulse 2.2s infinite; }
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.02); opacity: 0.92; }
-          100% { transform: scale(1); opacity: 1; }
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          // Switch mode automatically when timer ends
+          if (mode === "focus") {
+            setMode("break")
+            return breakTime
+          } else {
+            setMode("focus")
+            return focusTime
+          }
         }
-        /* subtle sliding for right panel content */
-        .slide-up { transform-origin: bottom; animation: slideUp 0.6s ease both; }
-        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-      `}</style>
+        return prev - 1
+      })
+    }, 1000)
 
-      {/* LEFT: Overlay area (1280x720) */}
-      <div
-        aria-hidden={false}
-        style={{
-          width: 1280,
-          height: 720,
-          boxSizing: "border-box",
-          padding: 20,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Top bar */}
-        <div
-          className="panel glass"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "14px 20px",
-            marginBottom: 18,
-            borderRadius: 12,
-            transition: "all 200ms ease",
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <span style={{ fontSize: 18 }}>📌</span>
-              <span>{goal}</span>
-            </div>
-          </div>
+    return () => clearInterval(interval)
+  }, [timerState, mode, focusTime, breakTime])
 
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 14, opacity: 0.9 }}>Next Break</div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{nextBreakDisplay}</div>
+  // Control handlers
+  const startTimer = () => setTimerState("running")
+  const pauseTimer = () => setTimerState("paused")
+  const resetTimer = () => {
+    setTimerState("idle")
+    setSecondsLeft(mode === "focus" ? focusTime : breakTime)
+  }
+  const skipTimer = () => {
+    if (mode === "focus") {
+      setMode("break")
+      setSecondsLeft(breakTime)
+    } else {
+      setMode("focus")
+      setSecondsLeft(focusTime)
+    }
+    setTimerState("running")
+  }
+
+  // Handle input changes
+  const updateFocusTime = (minutes: number) => {
+    const secs = minutes * 60
+    setFocusTime(secs)
+    if (mode === "focus") setSecondsLeft(secs)
+  }
+  const updateBreakTime = (minutes: number) => {
+    const secs = minutes * 60
+    setBreakTime(secs)
+    if (mode === "break") setSecondsLeft(secs)
+  }
+
+  return (
+    <div className="flex h-screen bg-white text-gray-900 overflow-hidden">
+      {/* Left Panel - Control Sidebar */}
+      <div className="w-80 bg-gray-50/50 border-r border-gray-200 p-8 flex flex-col gap-6">
+        {/* Header */}
+        <div className="mb-4">
+          <h1 className="text-lg font-medium text-gray-900 mb-6 tracking-tight">Study Timer</h1>
+
+          {/* Topic Input */}
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-gray-600 uppercase tracking-wide flex items-center gap-2">
+              <Brain className="w-3 h-3" />
+              Current Topic
+            </label>
+            <input
+              className="w-full bg-white border border-gray-200 rounded-md px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-300 focus:ring-0 focus:outline-none transition-colors"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="What are you studying?"
+            />
           </div>
         </div>
 
+        {/* Timer Settings */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Focus
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={Math.floor(focusTime / 60)}
+                  onChange={(e) => updateFocusTime(Number(e.target.value))}
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-900 focus:border-gray-300 focus:ring-0 focus:outline-none transition-colors"
+                />
+                <span className="absolute right-3 top-2 text-xs text-gray-400">min</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                <Coffee className="w-3 h-3" />
+                Break
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={Math.floor(breakTime / 60)}
+                  onChange={(e) => updateBreakTime(Number(e.target.value))}
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-900 focus:border-gray-300 focus:ring-0 focus:outline-none transition-colors"
+                />
+                <span className="absolute right-3 top-2 text-xs text-gray-400">min</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        {/* Center compact timer + progress ring */}
-        <div
-          style={{
-            height: 480, // shrink container height
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 20,
-          }}
-        >
-          <div
-            style={{
-              width: 160,   // reduced from 260
-              height: 160,  // reduced from 260
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              position: "relative",
-            }}
-            aria-hidden
-          >
-            {/* SVG circular progress */}
-            <svg height={radius * 1.2} width={radius * 1.2}>
-              <defs>
-                <linearGradient id="g1" x1="0%" x2="100%">
-                  <stop offset="0%" stopColor="#7dd3fc" />
-                  <stop offset="100%" stopColor="#6d28d9" />
-                </linearGradient>
-              </defs>
+        {/* Circular Timer Display */}
+        <div className="flex flex-col items-center py-8">
+          <div className="relative w-36 h-36 mb-6">
+            {/* Background Circle */}
+            <svg className="w-36 h-36 transform -rotate-90" viewBox="0 0 120 120">
               <circle
-                stroke="rgba(255,255,255,0.06)"
+                cx="60"
+                cy="60"
+                r="54"
+                stroke="currentColor"
+                strokeWidth="3"
                 fill="transparent"
-                strokeWidth={stroke}
-                r={normalizedRadius}
-                cx={radius}
-                cy={radius}
+                className="text-gray-200"
               />
+              {/* Progress Circle */}
               <circle
-                stroke="url(#g1)"
+                cx="60"
+                cy="60"
+                r="54"
+                stroke="currentColor"
+                strokeWidth="3"
                 fill="transparent"
+                strokeDasharray={`${2 * Math.PI * 54}`}
+                strokeDashoffset={`${2 * Math.PI * 54 * (1 - getProgress() / 100)}`}
+                className={`transition-all duration-1000 ease-out ${
+                  mode === "focus" ? "text-blue-500" : "text-green-500"
+                }`}
                 strokeLinecap="round"
-                strokeWidth={stroke}
-                r={normalizedRadius}
-                cx={radius}
-                cy={radius}
-                strokeDasharray={`${circumference} ${circumference}`}
-                strokeDashoffset={strokeDashoffset}
-                style={{ transition: "stroke-dashoffset 0.7s linear" }}
               />
             </svg>
 
-            {/* Inner timer card */}
-            <div
-              style={{
-                position: "absolute",
-                width: 120,  // reduced from 200
-                height: 120, // reduced from 200
-                borderRadius: 16,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
-                boxShadow: isFocus
-                  ? "0 8px 20px rgba(59, 97, 255, 0.08)"
-                  : "0 8px 20px rgba(34,197,94,0.06)",
-                border: "1px solid rgba(255,255,255,0.04)",
-                transition: "all 300ms ease",
-                transform: isRunning ? "scale(1.01)" : "scale(1)",
-              }}
-            >
-              <div style={{ fontSize: 14, opacity: 0.9 }}>
-                {isFocus ? "FOCUS" : "BREAK"}
+            {/* Timer Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="text-2xl font-mono font-medium text-gray-900 tracking-tight">
+                {formatTime(secondsLeft)}
               </div>
-              <div
-                style={{
-                  fontSize: 28, // smaller than 46
-                  fontWeight: 700,
-                  marginTop: 4,
-                  letterSpacing: 0.5,
-                }}
+              <div className="text-xs text-gray-500 mt-1 capitalize font-medium tracking-wide">{mode} Time</div>
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex gap-2">
+            {timerState !== "running" ? (
+              <button
+                onClick={startTimer}
+                className="flex items-center justify-center w-10 h-10 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
-                {minutesAndSeconds(Math.max(0, remainingSec))}
-              </div>
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8 }}>
-                {`Session ${session} / ${totalSessions}`}
-              </div>
-            </div>
-          </div>
-        
+                <Play className="w-4 h-4 ml-0.5" />
+              </button>
+            ) : (
+              <button
+                onClick={pauseTimer}
+                className="flex items-center justify-center w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors duration-200"
+              >
+                <Pause className="w-4 h-4" />
+              </button>
+            )}
 
+            <button
+              onClick={resetTimer}
+              className="flex items-center justify-center w-10 h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
 
-        {/* Left Sidebar Info Stack */}
-        <div
-          style={{
-            position: "absolute",     // float it
-            top: "50%",               // vertical center
-            left: 20,                 // stick to left
-            transform: "translateY(-50%)", // perfect centering
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            width: 280,               // narrower for sidebar feel
-          }}
-        >
-          <div
-            className="panel"
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 6 }}>
-              Quick Info
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <div style={{ fontSize: 20 }}>🎧</div>
-              <div>
-                <div style={{ fontWeight: 700 }}>Lo-Fi Focus</div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>
-                  Background music on | Vol 40%
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="panel"
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 6 }}>
-              Reminder
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.9, lineHeight: "1.4" }}>
-              {"💬 Chat will be read every break."}
-              {"Stay focused — small consistent steps win."}
-            </div>
+            <button
+              onClick={skipTimer}
+              className="flex items-center justify-center w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
+            >
+              <SkipForward className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-
-
+        {/* Status Panel */}
+        <div className="mt-auto space-y-3">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <Volume2 className="w-4 h-4 text-gray-400" />
+              <span>Lo-Fi Focus music</span>
+              <span className="text-xs text-gray-400">Vol 40%</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <MessageCircle className="w-4 h-4 text-gray-400" />
+              <span>Chat read every break</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Bottom bar */}
-      <div
-        className="panel"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px 16px",
-          marginTop: 6,
-          borderRadius: 12,
-        }}
-      >
-        <div style={{ fontSize: 14 }}>
-          {"Placement Prep 2026 — Study With Me"}
+      {/* Main Content Area */}
+      <div className="flex-1 bg-white">
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="text-6xl font-light text-gray-600">{formatTime(secondsLeft)}</div>
+            <div className="text-lg text-gray-500 font-light capitalize tracking-wide">{mode} Session</div>
+            <div className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
+              {topic || "Focus on your current task"}
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              borderRadius: 10,
-              padding: "6px 10px",
-              fontSize: 14,
-            }}
-          >
-            {isRunning ? "Running" : "Paused"}
+      </div>
+
+      {/* Right Panel - Optional */}
+      <div className="w-64 bg-gray-50/30 border-l border-gray-200">
+        <div className="p-6">
+          <div className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-4">Session Stats</div>
+          <div className="space-y-3 text-sm text-gray-600">
+            <div className="flex justify-between">
+              <span>Current Mode</span>
+              <span className="capitalize font-medium">{mode}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Status</span>
+              <span className="capitalize font-medium">{timerState}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Progress</span>
+              <span className="font-medium">{Math.round(getProgress())}%</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-      {/* RIGHT: Control Panel (not captured by OBS if you crop) */ }
-  <div
-    style={{
-      flex: 1,
-      maxWidth: 520,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      alignItems: "stretch",
-    }}
-  >
-    <div
-      className="panel slide-up"
-      style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>🎛 Control Panel</h3>
-        <div style={{ opacity: 0.8, fontSize: 13 }}>
-          Tip: Space=start/pause · R=reset · S=skip
-        </div>
-      </div>
-
-      {/* Goal */}
-      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ fontSize: 13, opacity: 0.85 }}>{"Today's Goal"}</div>
-        <input
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: "rgba(255,255,255,0.01)",
-            color: "white",
-            fontSize: 15,
-          }}
-        />
-      </label>
-
-      {/* Durations */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Focus (minutes)"}</div>
-          <input
-            type="number"
-            min={1}
-            value={focusMinutes}
-            onChange={(e) => {
-              const v = Math.max(1, Number(e.target.value || 1));
-              setFocusMinutes(v);
-              if (isFocus) {
-                initialRef.current = v * 60;
-                setRemainingSec(v * 60);
-              }
-            }}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.01)",
-              color: "white",
-            }}
-          />
-        </div>
-        <div style={{ width: 120 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Break (minutes)"}</div>
-          <input
-            type="number"
-            min={1}
-            value={breakMinutes}
-            onChange={(e) => {
-              const v = Math.max(1, Number(e.target.value || 1));
-              setBreakMinutes(v);
-              if (!isFocus) {
-                initialRef.current = v * 60;
-                setRemainingSec(v * 60);
-              }
-            }}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.01)",
-              color: "white",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Sessions */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Session"}</div>
-          <input
-            type="number"
-            min={1}
-            value={session}
-            onChange={(e) =>
-              setSession(Math.max(1, Math.min(totalSessions, Number(e.target.value || 1))))
-            }
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.01)",
-              color: "white",
-            }}
-          />
-        </div>
-        <div style={{ width: 140 }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>{"Total Sessions"}</div>
-          <input
-            type="number"
-            min={1}
-            value={totalSessions}
-            onChange={(e) => setTotalSessions(Math.max(1, Number(e.target.value || 1)))}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.01)",
-              color: "white",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Controls row */}
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button
-          onClick={startPause}
-          className="btn btn-primary"
-          style={{
-            flex: 1,
-            background: isRunning ? "linear-gradient(90deg,#ff7ab6,#ff5a5a)" : undefined,
-          }}
-        >
-          {isRunning ? "Pause" : "Start"}
-        </button>
-        <button onClick={resetTimer} className="btn btn-ghost" style={{ width: 110 }}>
-          Reset
-        </button>
-        <button onClick={skip} className="btn btn-ghost" style={{ width: 110 }}>
-          Skip
-        </button>
-      </div>
-
-      {/* Extra actions */}
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button
-          onClick={() => {
-            setIsFocus(true);
-            initialRef.current = focusMinutes * 60;
-            setRemainingSec(focusMinutes * 60);
-            setIsRunning(false);
-          }}
-          className="btn btn-ghost"
-          style={{ flex: 1 }}
-        >
-          Set Focus
-        </button>
-        <button
-          onClick={() => {
-            setIsFocus(false);
-            initialRef.current = breakMinutes * 60;
-            setRemainingSec(breakMinutes * 60);
-            setIsRunning(false);
-          }}
-          className="btn btn-ghost"
-          style={{ flex: 1 }}
-        >
-          Set Break
-        </button>
-      </div>
-    </div>
-
-    <div className="panel slide-up" style={{ padding: 14 }}>
-      <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>{"Preview Controls"}</div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={() => {
-            // small visual demo: add 1 minute
-            setRemainingSec((s) => s + 60);
-          }}
-          className="btn btn-ghost"
-        >
-          +1 min
-        </button>
-        <button
-          onClick={() => {
-            setRemainingSec((s) => Math.max(0, s - 60));
-          }}
-          className="btn btn-ghost"
-        >
-          -1 min
-        </button>
-        <button
-          onClick={() => {
-            setSession((x) => Math.max(1, x - 1));
-          }}
-          className="btn btn-ghost"
-        >
-          -Session
-        </button>
-        <button
-          onClick={() => {
-            setSession((x) => Math.min(totalSessions, x + 1));
-          }}
-          className="btn btn-ghost"
-        >
-          +Session
-        </button>
-      </div>
-    </div>
-
-    <div className="panel slide-up" style={{ padding: 14 }}>
-      <div style={{ fontSize: 13, opacity: 0.8 }}>
-        OBS instructions:
-        <ul style={{ marginTop: 6, opacity: 0.9 }}>
-          <li>• Add Browser Source → URL to this page.</li>
-          <li>• Set Width 1280 Height 720 and enable Transparency.</li>
-          <li>• Crop the browser window to capture only left 1280×720 area.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-    </div >
-  );
+  )
 }
