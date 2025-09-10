@@ -33,7 +33,7 @@ export default function Home(){
        </div>
 
        {/* Description */}
-       <div className="flex gap-2 ml-10">
+       <div className="flex gap-2 ml-5">
         <p className={`${pixelify.className} text-white text-6xl `}>STUDY </p>
 
         <p className={`${kapakana.className} text-white text-5xl`}>with</p>
@@ -45,9 +45,9 @@ export default function Home(){
 
        {/* Info */}
 
-       <div className="flex flex-col text-white ml-15 justify-center items-center">
+       <div className="flex flex-col text-white ml-8 justify-center items-center">
 
-        <p className={`${jura.className} font-bold text-3xl`}>Topic- Solving Leetcode Together</p>
+        <p className={`${jura.className} font-bold text-2xl`}>Topic- Solving Leetcode Together</p>
 
         <div className="flex gap-2">
           <Image height={20} width={25} quality={100} alt={"Github logo"} src={'/github.png'}></Image>
@@ -60,7 +60,7 @@ export default function Home(){
        
         {/* Vinyl */}
 
-       <Image className="absolute right-10 bottom-2 animate-spin-slow " height={170} width={170} quality={100} alt={"Vinyl"} src={'/vinyl.png'}></Image>
+       <Image className="absolute right-5 bottom-2 animate-spin-slow " height={160} width={160} quality={100} alt={"Vinyl"} src={'/vinyl.png'}></Image>
    
 
     </div>
