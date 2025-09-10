@@ -29,6 +29,7 @@ export default function Home() {
   const [timerSeconds, setTimerSeconds] = useState<number>(50 * 60);
   const [secondsLeft, setSecondsLeft] = useState<number>(50 * 60);
   const [timerState, setTimerState] = useState<'running' | 'paused' | 'idle'>('idle');
+  const [topic, setTopic] = useState<string>("LinkedList and Leetcode Questions")
 
   const defaultTimerValue = 50*60;
 
@@ -90,6 +91,10 @@ export default function Home() {
     setTimerSeconds(defaultTimerValue)
   }
 
+  const handleTopic = (value:string) =>{
+      setTopic(value)
+  }
+
 
   return (
 
@@ -118,7 +123,7 @@ export default function Home() {
 
         <div className="flex flex-col text-white ml-8 justify-center items-center">
 
-          <p className={`${jura.className} font-bold text-2xl`}>Topic- Solving Leetcode Together</p>
+          <p className={`${jura.className} font-bold text-2xl`}>{topic}</p>
 
           <div className="flex gap-2">
             <Image height={20} width={25} quality={100} alt={"Github logo"} src={'/github.png'}></Image>
@@ -144,27 +149,38 @@ export default function Home() {
     type="number"
     onChange={(e) => handleTimer(e.target.value)}
     placeholder="Focus Time (min)"
-    className="w-40 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+    className="w-40 px-4 py-2 border bg-black text-white border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
   />
+
+
+    <input
+    value={topic}
+    type="text"
+    onChange={(e) => handleTopic(e.target.value)}
+    placeholder="Topic Title"
+    className="w-200 px-4 py-2 border bg-black text-white border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+  />
+
+
 
   <div className="flex gap-4">
     <button
       onClick={handleStart}
-      className="px-5 py-2 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition"
+      className="px-5 py-2 cursor-pointer rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition"
     >
       Start
     </button>
 
     <button
       onClick={handlePause}
-      className="px-5 py-2 rounded-lg bg-yellow-500 text-white font-medium hover:bg-yellow-600 transition"
+      className="px-5 py-2 rounded-lg cursor-pointer bg-yellow-500 text-white font-medium hover:bg-yellow-600 transition"
     >
       Pause
     </button>
 
     <button
       onClick={handleReset}
-      className="px-5 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition"
+      className="px-5 py-2 rounded-lg cursor-pointer bg-red-500 text-white font-medium hover:bg-red-600 transition"
     >
       Reset
     </button>
